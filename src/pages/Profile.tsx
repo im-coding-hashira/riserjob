@@ -4,34 +4,67 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import JobCard from '@/components/JobCard';
 import UserAuth from '@/components/UserAuth';
-import { mockUsers, mockJobs } from '@/lib/mockData';
+import { mockJobs } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Job } from '@/lib/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, isLoading: authLoading, signOut } = useAuth();
   
-  const [isLoggedIn, setIsLoggedIn] = useState(true); // Default to true for profile page
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [userProfile, setUserProfile] = useState({
-    name: 'Test User',
-    email: 'user@example.com',
+    name: '',
+    email: '',
     password: '********',
   });
+  const [isUpdating, setIsUpdating] = useState(false);
   
-  // Simulate loading saved jobs from API
+  // Redirect to home if not logged in
   useEffect(() => {
-    // In a real app, you'd fetch the user's saved jobs from your backend
-    const mockSavedJobIds = mockUsers[0].savedJobs || [];
-    const userSavedJobs = mockJobs.filter(job => mockSavedJobIds.includes(job.id));
-    setSavedJobs(userSavedJobs);
-  }, []);
+    if (!authLoading && !user) {
+      navigate('/');
+    } else if (user) {
+      // Fetch user profile data from Supabase
+      const fetchUserProfile = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('name, email')
+            .eq('id', user.id)
+            .single();
+            
+          if (error) throw error;
+          
+          if (data) {
+            setUserProfile({
+              name: data.name || '',
+              email: data.email || user.email || '',
+              password: '********'
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      };
+      
+      fetchUserProfile();
+      
+      // In a real app, you'd fetch the user's saved jobs from your backend
+      // For now, using mock data
+      const mockSavedJobIds = ['job1', 'job3']; // Example IDs
+      const userSavedJobs = mockJobs.filter(job => mockSavedJobIds.includes(job.id));
+      setSavedJobs(userSavedJobs);
+    }
+  }, [user, authLoading, navigate]);
   
   const handleRemoveSavedJob = (jobId: string) => {
     setSavedJobs(prev => prev.filter(job => job.id !== jobId));
@@ -41,58 +74,58 @@ const Profile = () => {
     });
   };
   
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you'd send the updated profile to your backend
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been updated successfully.",
-    });
-  };
-  
-  const handleLogin = (email: string, password: string) => {
-    // Here you'd typically call your authentication API
-    console.log('Login attempt with:', email, password);
     
-    // Simulate successful login
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-    toast({
-      title: 'Welcome back!',
-      description: 'You have successfully logged in.',
-    });
+    if (!user) return;
+    
+    try {
+      setIsUpdating(true);
+      
+      // Update profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          name: userProfile.name,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile information has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error updating profile",
+        description: error.message || "An error occurred while updating your profile.",
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUpdating(false);
+    }
   };
   
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    // Redirect to home page after logout
-    navigate('/');
-    toast({
-      title: 'Logged out',
-      description: 'You have been successfully logged out.',
-    });
+    signOut();
   };
   
-  const handleSignup = (name: string, email: string, password: string) => {
-    // This shouldn't be needed in the profile page, but including for completeness
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-  };
-  
-  // Redirect to home if not logged in
-  useEffect(() => {
-    if (!isLoggedIn) {
-      navigate('/');
-    }
-  }, [isLoggedIn, navigate]);
+  if (authLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar onLogin={() => setIsAuthModalOpen(true)} />
+        <main className="flex-1 bg-gray-50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-riser-purple"></div>
+        </main>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar 
-        isLoggedIn={isLoggedIn} 
-        onLogin={() => setIsAuthModalOpen(true)} 
-        onLogout={handleLogout} 
-      />
+      <Navbar onLogin={() => setIsAuthModalOpen(true)} />
       
       <main className="flex-1 bg-gray-50">
         <div className="container mx-auto px-4 py-8">
@@ -116,7 +149,7 @@ const Profile = () => {
                         job={job} 
                         isSaved={true}
                         onToggleSave={handleRemoveSavedJob}
-                        isLoggedIn={isLoggedIn}
+                        isLoggedIn={!!user}
                         onLogin={() => {}}
                       />
                     ))}
@@ -147,6 +180,7 @@ const Profile = () => {
                         id="name" 
                         value={userProfile.name}
                         onChange={e => setUserProfile({...userProfile, name: e.target.value})}
+                        disabled={isUpdating}
                       />
                     </div>
                     
@@ -156,7 +190,7 @@ const Profile = () => {
                         id="email" 
                         type="email"
                         value={userProfile.email}
-                        onChange={e => setUserProfile({...userProfile, email: e.target.value})}
+                        disabled={true} // Email can't be changed directly
                       />
                     </div>
                     
@@ -166,6 +200,7 @@ const Profile = () => {
                         id="current-password" 
                         type="password"
                         placeholder="Enter your current password"
+                        disabled={isUpdating}
                       />
                     </div>
                     
@@ -175,6 +210,7 @@ const Profile = () => {
                         id="new-password" 
                         type="password"
                         placeholder="Enter a new password"
+                        disabled={isUpdating}
                       />
                     </div>
                   </div>
@@ -183,8 +219,9 @@ const Profile = () => {
                     <Button 
                       type="submit"
                       className="bg-riser-purple hover:bg-riser-secondary-purple"
+                      disabled={isUpdating}
                     >
-                      Save Changes
+                      {isUpdating ? 'Saving...' : 'Save Changes'}
                     </Button>
                   </div>
                 </form>
@@ -210,8 +247,6 @@ const Profile = () => {
       <UserAuth 
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onLogin={handleLogin}
-        onSignup={handleSignup}
       />
     </div>
   );

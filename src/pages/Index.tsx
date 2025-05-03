@@ -9,55 +9,18 @@ import UserAuth from '@/components/UserAuth';
 import { mockJobs } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { Briefcase, Search, Users, TrendingUp } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const featuredJobs = mockJobs.slice(0, 4);
   
-  const handleLogin = (email: string, password: string) => {
-    // Here you'd typically call your authentication API
-    console.log('Login attempt with:', email, password);
-    
-    // Simulate successful login
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-    toast({
-      title: 'Welcome back!',
-      description: 'You have successfully logged in.',
-    });
-  };
-  
-  const handleSignup = (name: string, email: string, password: string) => {
-    // Here you'd typically call your registration API
-    console.log('Signup attempt with:', name, email, password);
-    
-    // Simulate successful registration
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-    toast({
-      title: 'Account created!',
-      description: 'Welcome to RiserJobs.',
-    });
-  };
-  
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    toast({
-      title: 'Logged out',
-      description: 'You have been successfully logged out.',
-    });
-  };
-  
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar 
-        isLoggedIn={isLoggedIn} 
-        onLogin={() => setIsAuthModalOpen(true)} 
-        onLogout={handleLogout} 
-      />
+      <Navbar onLogin={() => setIsAuthModalOpen(true)} />
       
       <main className="flex-1">
         {/* Hero Section */}
@@ -126,7 +89,7 @@ const Index = () => {
                 <JobCard 
                   key={job.id} 
                   job={job} 
-                  isLoggedIn={isLoggedIn}
+                  isLoggedIn={!!user}
                   onLogin={() => setIsAuthModalOpen(true)}
                 />
               ))}
@@ -195,8 +158,6 @@ const Index = () => {
       <UserAuth 
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onLogin={handleLogin}
-        onSignup={handleSignup}
       />
     </div>
   );

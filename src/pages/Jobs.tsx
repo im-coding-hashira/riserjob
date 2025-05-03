@@ -11,14 +11,15 @@ import { Job, SearchFilters } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Jobs = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const { user } = useAuth();
   
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<Job[]>(mockJobs);
@@ -112,40 +113,6 @@ const Jobs = () => {
     }
   };
   
-  const handleLogin = (email: string, password: string) => {
-    // Here you'd typically call your authentication API
-    console.log('Login attempt with:', email, password);
-    
-    // Simulate successful login
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-    toast({
-      title: 'Welcome back!',
-      description: 'You have successfully logged in.',
-    });
-  };
-  
-  const handleSignup = (name: string, email: string, password: string) => {
-    // Here you'd typically call your registration API
-    console.log('Signup attempt with:', name, email, password);
-    
-    // Simulate successful registration
-    setIsLoggedIn(true);
-    setIsAuthModalOpen(false);
-    toast({
-      title: 'Account created!',
-      description: 'Welcome to RiserJobs.',
-    });
-  };
-  
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    toast({
-      title: 'Logged out',
-      description: 'You have been successfully logged out.',
-    });
-  };
-  
   // Pagination
   const indexOfLastJob = currentPage * jobsPerPage;
   const indexOfFirstJob = indexOfLastJob - jobsPerPage;
@@ -164,11 +131,7 @@ const Jobs = () => {
   
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar 
-        isLoggedIn={isLoggedIn} 
-        onLogin={() => setIsAuthModalOpen(true)} 
-        onLogout={handleLogout} 
-      />
+      <Navbar onLogin={() => setIsAuthModalOpen(true)} />
       
       <main className="flex-1 bg-gray-50">
         <div className="bg-riser-light-purple py-6">
@@ -217,7 +180,7 @@ const Jobs = () => {
                       job={job}
                       isSaved={savedJobs.includes(job.id)}
                       onToggleSave={handleToggleSave}
-                      isLoggedIn={isLoggedIn}
+                      isLoggedIn={!!user}
                       onLogin={() => setIsAuthModalOpen(true)}
                     />
                   ))}
@@ -288,8 +251,6 @@ const Jobs = () => {
       <UserAuth 
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        onLogin={handleLogin}
-        onSignup={handleSignup}
       />
     </div>
   );

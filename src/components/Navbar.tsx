@@ -16,16 +16,18 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/contexts/AuthContext';
 
 type NavbarProps = {
-  isLoggedIn: boolean;
   onLogin: () => void;
-  onLogout: () => void;
 };
 
-const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLogin, onLogout }) => {
+const Navbar: React.FC<NavbarProps> = ({ onLogin }) => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut, isLoading } = useAuth();
+  
+  const isLoggedIn = !!user;
 
   const navLinks = [
     { name: 'Find Jobs', path: '/jobs', icon: <Search className="h-5 w-5" /> },
@@ -43,6 +45,10 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLogin, onLogout }) => {
   const allLinks = [...navLinks, ...authLinks];
 
   const closeMobileMenu = () => setIsMenuOpen(false);
+
+  const handleLogout = async () => {
+    await signOut();
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-md border-b border-gray-200">
@@ -89,10 +95,14 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLogin, onLogout }) => {
             <>
               {!isLoggedIn ? (
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" onClick={onLogin}>
+                  <Button variant="outline" onClick={onLogin} disabled={isLoading}>
                     Log In
                   </Button>
-                  <Button className="bg-riser-purple hover:bg-riser-secondary-purple">
+                  <Button 
+                    className="bg-riser-purple hover:bg-riser-secondary-purple"
+                    onClick={onLogin}
+                    disabled={isLoading}
+                  >
                     Sign Up
                   </Button>
                 </div>
@@ -102,7 +112,7 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLogin, onLogout }) => {
                     <User className="h-5 w-5" />
                     Profile
                   </Link>
-                  <Button variant="ghost" onClick={onLogout}>
+                  <Button variant="ghost" onClick={handleLogout} disabled={isLoading}>
                     Log Out
                   </Button>
                 </div>
@@ -149,7 +159,7 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLogin, onLogout }) => {
                         className="flex items-center gap-3 p-2 text-base font-medium text-gray-700 hover:text-riser-purple hover:bg-gray-100 rounded-md transition-colors"
                         onClick={() => {
                           closeMobileMenu();
-                          if (link.onClick) link.onClick();
+                          if ('onClick' in link && link.onClick) link.onClick();
                         }}
                       >
                         {link.icon}
@@ -157,7 +167,14 @@ const Navbar: React.FC<NavbarProps> = ({ isLoggedIn, onLogin, onLogout }) => {
                       </Link>
                     ))}
                     {isLoggedIn && (
-                      <Button variant="outline" onClick={() => { closeMobileMenu(); onLogout(); }}>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => { 
+                          closeMobileMenu();
+                          handleLogout(); 
+                        }}
+                        disabled={isLoading}
+                      >
                         Log Out
                       </Button>
                     )}

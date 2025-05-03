@@ -13,19 +13,16 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UserAuthProps {
   isOpen: boolean;
   onClose: () => void;
-  onLogin: (email: string, password: string) => void;
-  onSignup: (name: string, email: string, password: string) => void;
 }
 
 const UserAuth: React.FC<UserAuthProps> = ({ 
   isOpen, 
   onClose,
-  onLogin,
-  onSignup 
 }) => {
   const [activeTab, setActiveTab] = useState('login');
   const [loginData, setLoginData] = useState({ email: '', password: '' });
@@ -36,8 +33,9 @@ const UserAuth: React.FC<UserAuthProps> = ({
     confirmPassword: '' 
   });
   const { toast } = useToast();
+  const { signIn, signUp, isLoading } = useAuth();
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Simple validation
@@ -50,10 +48,15 @@ const UserAuth: React.FC<UserAuthProps> = ({
       return;
     }
     
-    onLogin(loginData.email, loginData.password);
+    try {
+      await signIn(loginData.email, loginData.password);
+      onClose();
+    } catch (error) {
+      // Error is handled in the auth context
+    }
   };
 
-  const handleSignupSubmit = (e: React.FormEvent) => {
+  const handleSignupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Simple validation
@@ -75,7 +78,12 @@ const UserAuth: React.FC<UserAuthProps> = ({
       return;
     }
     
-    onSignup(signupData.name, signupData.email, signupData.password);
+    try {
+      await signUp(signupData.email, signupData.password, signupData.name);
+      onClose();
+    } catch (error) {
+      // Error is handled in the auth context
+    }
   };
 
   return (
@@ -115,6 +123,7 @@ const UserAuth: React.FC<UserAuthProps> = ({
                   placeholder="you@example.com"
                   value={loginData.email}
                   onChange={(e) => setLoginData({...loginData, email: e.target.value})}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -130,14 +139,16 @@ const UserAuth: React.FC<UserAuthProps> = ({
                   type="password"
                   value={loginData.password}
                   onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                  disabled={isLoading}
                 />
               </div>
               
               <Button
                 type="submit"
                 className="w-full bg-riser-purple hover:bg-riser-secondary-purple"
+                disabled={isLoading}
               >
-                Log In
+                {isLoading ? 'Processing...' : 'Log In'}
               </Button>
               
               <p className="text-center text-sm text-muted-foreground mt-4">
@@ -162,6 +173,7 @@ const UserAuth: React.FC<UserAuthProps> = ({
                   placeholder="John Doe"
                   value={signupData.name}
                   onChange={(e) => setSignupData({...signupData, name: e.target.value})}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -173,6 +185,7 @@ const UserAuth: React.FC<UserAuthProps> = ({
                   placeholder="you@example.com"
                   value={signupData.email}
                   onChange={(e) => setSignupData({...signupData, email: e.target.value})}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -183,6 +196,7 @@ const UserAuth: React.FC<UserAuthProps> = ({
                   type="password"
                   value={signupData.password}
                   onChange={(e) => setSignupData({...signupData, password: e.target.value})}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -193,14 +207,16 @@ const UserAuth: React.FC<UserAuthProps> = ({
                   type="password"
                   value={signupData.confirmPassword}
                   onChange={(e) => setSignupData({...signupData, confirmPassword: e.target.value})}
+                  disabled={isLoading}
                 />
               </div>
               
               <Button
                 type="submit"
                 className="w-full bg-riser-purple hover:bg-riser-secondary-purple"
+                disabled={isLoading}
               >
-                Sign Up
+                {isLoading ? 'Processing...' : 'Sign Up'}
               </Button>
               
               <p className="text-center text-sm text-muted-foreground mt-4">
