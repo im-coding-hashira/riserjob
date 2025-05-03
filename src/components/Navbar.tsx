@@ -22,6 +22,14 @@ type NavbarProps = {
   onLogin: () => void;
 };
 
+// Define proper types for our navigation links
+type NavLink = {
+  name: string;
+  path: string;
+  icon: React.ReactNode;
+  onClick?: () => void;
+};
+
 const Navbar: React.FC<NavbarProps> = ({ onLogin }) => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,12 +37,12 @@ const Navbar: React.FC<NavbarProps> = ({ onLogin }) => {
   
   const isLoggedIn = !!user;
 
-  const navLinks = [
+  const navLinks: NavLink[] = [
     { name: 'Find Jobs', path: '/jobs', icon: <Search className="h-5 w-5" /> },
     { name: 'Companies', path: '/companies', icon: <Briefcase className="h-5 w-5" /> },
   ];
 
-  const authLinks = isLoggedIn
+  const authLinks: NavLink[] = isLoggedIn
     ? [
         { name: 'Profile', path: '/profile', icon: <User className="h-5 w-5" /> },
       ]
@@ -159,7 +167,10 @@ const Navbar: React.FC<NavbarProps> = ({ onLogin }) => {
                         className="flex items-center gap-3 p-2 text-base font-medium text-gray-700 hover:text-riser-purple hover:bg-gray-100 rounded-md transition-colors"
                         onClick={() => {
                           closeMobileMenu();
-                          if (link.onClick) link.onClick();
+                          // Safely check if onClick exists before calling it
+                          if (link.onClick) {
+                            link.onClick();
+                          }
                         }}
                       >
                         {link.icon}
