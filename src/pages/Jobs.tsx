@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import SearchBar from '@/components/SearchBar';
@@ -31,7 +30,8 @@ const Jobs = () => {
   const initialLocation = searchParams.get('location') || '';
   
   // Process and filter jobs based on URL params and filters
-  const filterJobs = (filters: SearchFilters) => {
+  // Using useCallback to avoid recreating this function on every render
+  const filterJobs = useCallback((filters: SearchFilters) => {
     setLoading(true);
     
     let results = [...mockJobs];
@@ -75,15 +75,13 @@ const Jobs = () => {
       results = results.filter(job => job.remote);
     }
     
-    // Simulate API call delay
-    setTimeout(() => {
-      setFilteredJobs(results);
-      setCurrentPage(1);
-      setLoading(false);
-    }, 500);
-  };
+    // Remove the setTimeout to prevent flickering and unnecessary delays
+    setFilteredJobs(results);
+    setCurrentPage(1);
+    setLoading(false);
+  }, []);
   
-  // Parse search filters from URL on component mount
+  // Parse search filters from URL on component mount or when location.search changes
   useEffect(() => {
     const initialFilters: SearchFilters = {};
     
@@ -91,7 +89,7 @@ const Jobs = () => {
     if (initialLocation) initialFilters.location = initialLocation;
     
     filterJobs(initialFilters);
-  }, [location.search]);
+  }, [location.search, filterJobs]); // Add filterJobs to dependencies since we're using useCallback
   
   const handleFilterChange = (filters: SearchFilters) => {
     filterJobs(filters);
