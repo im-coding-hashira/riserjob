@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -9,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { mockJobs, mockUsers } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   Upload,
   Download,
@@ -23,8 +23,8 @@ import {
 const AdminPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signOut } = useAuth();
   
-  const [isLoggedIn, setIsLoggedIn] = useState(true); // Assume admin is logged in
   const [searchTerm, setSearchTerm] = useState('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -84,18 +84,13 @@ const AdminPage = () => {
     });
   };
   
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    navigate('/');
+  const handleLoginModal = () => {
+    // This function would open the login modal if needed
   };
   
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar 
-        isLoggedIn={isLoggedIn} 
-        onLogin={() => {}} 
-        onLogout={handleLogout} 
-      />
+      <Navbar onLogin={handleLoginModal} />
       
       <main className="flex-1 bg-gray-50">
         <div className="container mx-auto px-4 py-8">

@@ -159,7 +159,7 @@ const Navbar: React.FC<NavbarProps> = ({ onLogin }) => {
                         className="flex items-center gap-3 p-2 text-base font-medium text-gray-700 hover:text-riser-purple hover:bg-gray-100 rounded-md transition-colors"
                         onClick={() => {
                           closeMobileMenu();
-                          if ('onClick' in link && link.onClick) link.onClick();
+                          if (link.onClick) link.onClick();
                         }}
                       >
                         {link.icon}
