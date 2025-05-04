@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { mockJobs, mockUsers } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Upload,
   Download,
@@ -17,26 +19,64 @@ import {
   Plus,
   FileCheck2,
   Users,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
+
+const ADMIN_EMAIL = 'iam.refiction@gmail.com';
 
 const AdminPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [jobs, setJobs] = useState(mockJobs);
+  const [users, setUsers] = useState(mockUsers);
+  
+  // Verify admin access
+  useEffect(() => {
+    const checkAdminAccess = async () => {
+      setIsLoading(true);
+      
+      if (!user) {
+        toast({
+          title: 'Authentication required',
+          description: 'Please sign in to access the admin panel.',
+          variant: 'destructive',
+        });
+        navigate('/');
+        return;
+      }
+      
+      if (user.email !== ADMIN_EMAIL) {
+        toast({
+          title: 'Access denied',
+          description: 'You do not have permission to access the admin panel.',
+          variant: 'destructive',
+        });
+        navigate('/');
+        return;
+      }
+      
+      // Load real data from Supabase here when we integrate it
+      setIsLoading(false);
+    };
+    
+    checkAdminAccess();
+  }, [user, navigate, toast]);
   
   // Filter jobs based on search term
-  const filteredJobs = mockJobs.filter(job => 
+  const filteredJobs = jobs.filter(job => 
     job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     job.company.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   // Filter users based on search term
-  const filteredUsers = mockUsers.filter(user => 
+  const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -47,7 +87,7 @@ const AdminPage = () => {
     }
   };
   
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!csvFile) {
       toast({
         title: 'No file selected',
@@ -59,18 +99,85 @@ const AdminPage = () => {
     
     setIsUploading(true);
     
-    // Simulate file upload
-    setTimeout(() => {
-      setIsUploading(false);
-      setCsvFile(null);
+    // CSV parsing function
+    const parseCSV = (text: string): Array<Record<string, string>> => {
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(header => header.trim());
+      const results = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        
+        const values = lines[i].split(',').map(value => value.trim());
+        const entry: Record<string, string> = {};
+        
+        headers.forEach((header, index) => {
+          entry[header] = values[index] || '';
+        });
+        
+        results.push(entry);
+      }
+      
+      return results;
+    };
+    
+    try {
+      const text = await csvFile.text();
+      const parsedData = parseCSV(text);
+      
+      // Validate required fields
+      const requiredFields = ['title', 'company', 'location', 'job_type'];
+      const missingFields = [];
+      
+      for (const field of requiredFields) {
+        if (!parsedData[0][field]) {
+          missingFields.push(field);
+        }
+      }
+      
+      if (missingFields.length > 0) {
+        toast({
+          title: 'Invalid CSV format',
+          description: `Missing required fields: ${missingFields.join(', ')}`,
+          variant: 'destructive',
+        });
+        setIsUploading(false);
+        return;
+      }
+      
+      // Process the CSV data (mock implementation for now)
+      // In a real implementation, we would insert this data into Supabase
+      setTimeout(() => {
+        toast({
+          title: 'Upload successful',
+          description: `${parsedData.length} job listings have been processed.`,
+        });
+        
+        setIsUploading(false);
+        setCsvFile(null);
+      }, 1500);
+    } catch (error) {
+      console.error('Error processing CSV:', error);
       toast({
-        title: 'Upload successful',
-        description: `${csvFile.name} has been processed successfully.`,
+        title: 'Error processing CSV',
+        description: 'There was an error processing the CSV file.',
+        variant: 'destructive',
       });
-    }, 2000);
+      setIsUploading(false);
+    }
+  };
+  
+  const handleAddJob = () => {
+    toast({
+      title: 'Feature in development',
+      description: 'The add job feature will be available soon.',
+    });
   };
   
   const handleDeleteJob = (jobId: string) => {
+    // In a real implementation, this would delete from Supabase
+    setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
+    
     toast({
       title: 'Job deleted',
       description: `Job ID: ${jobId} has been removed.`,
@@ -78,26 +185,71 @@ const AdminPage = () => {
   };
   
   const handleDeleteUser = (userId: string) => {
+    // In a real implementation, this would delete from Supabase
+    setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+    
     toast({
       title: 'User deleted',
       description: `User ID: ${userId} has been removed.`,
     });
   };
   
-  const handleLoginModal = () => {
-    // This function would open the login modal if needed
+  const handleExportJobs = () => {
+    // Create CSV content
+    const headers = ['id', 'title', 'company', 'location', 'job_type', 'posted_at'];
+    const csvContent = [
+      headers.join(','),
+      ...jobs.map(job => [
+        job.id,
+        job.title,
+        job.company,
+        job.location,
+        job.job_type,
+        new Date(job.posted_at).toLocaleDateString()
+      ].join(','))
+    ].join('\n');
+    
+    // Create a Blob and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `job-listings-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: 'Export successful',
+      description: `${jobs.length} job listings have been exported.`,
+    });
   };
+  
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-riser-purple" />
+            <p>Loading admin panel...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar onLogin={handleLoginModal} />
+      <Navbar />
       
       <main className="flex-1 bg-gray-50">
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
             <div>
-              <Button className="bg-riser-purple hover:bg-riser-secondary-purple">
+              <Button className="bg-riser-purple hover:bg-riser-secondary-purple" onClick={handleAddJob}>
                 <Plus className="mr-2 h-4 w-4" /> Add New Job
               </Button>
             </div>
@@ -129,7 +281,11 @@ const AdminPage = () => {
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                    onClick={handleExportJobs}
+                  >
                     <Download className="h-4 w-4" /> Export
                   </Button>
                 </div>
