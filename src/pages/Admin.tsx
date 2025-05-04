@@ -7,14 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { mockJobs, mockUsers } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus,
   FileText,
   Users,
   Upload,
-  Loader2,
-  X
+  Loader2
 } from 'lucide-react';
 import JobsTab from '@/components/admin/JobsTab';
 import UsersTab from '@/components/admin/UsersTab';
@@ -23,6 +21,7 @@ import AddJobForm from '@/components/admin/AddJobForm';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Job } from '@/lib/types';
 
+// This is the admin email that is allowed to access this page
 const ADMIN_EMAIL = 'iam.refiction@gmail.com';
 
 const AdminPage = () => {
@@ -40,28 +39,37 @@ const AdminPage = () => {
     const checkAdminAccess = async () => {
       setIsLoading(true);
       
-      if (!user) {
-        toast({
-          title: 'Authentication required',
-          description: 'Please sign in to access the admin panel.',
-          variant: 'destructive',
-        });
-        navigate('/');
-        return;
-      }
-      
-      if (user.email !== ADMIN_EMAIL) {
-        toast({
-          title: 'Access denied',
-          description: 'You do not have permission to access the admin panel.',
-          variant: 'destructive',
-        });
-        navigate('/');
-        return;
-      }
-      
-      // Load real data from Supabase here when we integrate it
-      setIsLoading(false);
+      // Add a small delay to ensure auth state is properly loaded
+      setTimeout(() => {
+        if (!user) {
+          console.log("No user logged in, redirecting to home");
+          toast({
+            title: 'Authentication required',
+            description: 'Please sign in to access the admin panel.',
+            variant: 'destructive',
+          });
+          navigate('/');
+          return;
+        }
+        
+        console.log("Current user email:", user.email);
+        console.log("Admin email required:", ADMIN_EMAIL);
+        
+        if (user.email !== ADMIN_EMAIL) {
+          console.log("User is not admin, redirecting to home");
+          toast({
+            title: 'Access denied',
+            description: 'You do not have permission to access the admin panel.',
+            variant: 'destructive',
+          });
+          navigate('/');
+          return;
+        }
+        
+        console.log("Admin access granted");
+        // Load real data from Supabase here when we integrate it
+        setIsLoading(false);
+      }, 500);
     };
     
     checkAdminAccess();
@@ -74,6 +82,11 @@ const AdminPage = () => {
   const handleJobAdded = (newJob: Job) => {
     setJobs(prevJobs => [newJob, ...prevJobs]);
     setIsAddJobDialogOpen(false);
+    
+    toast({
+      title: 'Success',
+      description: 'Job has been added successfully.',
+    });
   };
   
   if (isLoading) {
@@ -98,7 +111,10 @@ const AdminPage = () => {
         <div className="container mx-auto px-4 py-8">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
-            <div>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground mr-2">
+                Logged in as: {user?.email}
+              </p>
               <Button className="bg-riser-purple hover:bg-riser-secondary-purple" onClick={handleAddJob}>
                 <Plus className="mr-2 h-4 w-4" /> Add New Job
               </Button>
