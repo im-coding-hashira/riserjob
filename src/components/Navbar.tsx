@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,7 +18,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 
 type NavbarProps = {
-  onLogin: () => void;
+  onLogin?: () => void;
 };
 
 // Define proper types for our navigation links
@@ -30,7 +29,7 @@ type NavLink = {
   onClick?: () => void;
 };
 
-const Navbar: React.FC<NavbarProps> = ({ onLogin }) => {
+const Navbar: React.FC<NavbarProps> = ({ onLogin = () => {} }) => {
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, signOut, isLoading } = useAuth();

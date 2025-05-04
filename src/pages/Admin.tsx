@@ -3,25 +3,21 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { mockJobs, mockUsers } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
-  Upload,
-  Download,
-  Trash2,
-  Search,
   Plus,
-  FileCheck2,
-  Users,
   FileText,
+  Users,
+  Upload,
   Loader2
 } from 'lucide-react';
+import JobsTab from '@/components/admin/JobsTab';
+import UsersTab from '@/components/admin/UsersTab';
+import CsvUploadTab from '@/components/admin/CsvUploadTab';
 
 const ADMIN_EMAIL = 'iam.refiction@gmail.com';
 
@@ -30,9 +26,6 @@ const AdminPage = () => {
   const { toast } = useToast();
   const { user, signOut } = useAuth();
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [jobs, setJobs] = useState(mockJobs);
   const [users, setUsers] = useState(mockUsers);
@@ -69,104 +62,6 @@ const AdminPage = () => {
     checkAdminAccess();
   }, [user, navigate, toast]);
   
-  // Filter jobs based on search term
-  const filteredJobs = jobs.filter(job => 
-    job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    job.company.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => 
-    user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setCsvFile(e.target.files[0]);
-    }
-  };
-  
-  const handleUpload = async () => {
-    if (!csvFile) {
-      toast({
-        title: 'No file selected',
-        description: 'Please select a CSV file to upload.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setIsUploading(true);
-    
-    // CSV parsing function
-    const parseCSV = (text: string): Array<Record<string, string>> => {
-      const lines = text.split('\n');
-      const headers = lines[0].split(',').map(header => header.trim());
-      const results = [];
-      
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue;
-        
-        const values = lines[i].split(',').map(value => value.trim());
-        const entry: Record<string, string> = {};
-        
-        headers.forEach((header, index) => {
-          entry[header] = values[index] || '';
-        });
-        
-        results.push(entry);
-      }
-      
-      return results;
-    };
-    
-    try {
-      const text = await csvFile.text();
-      const parsedData = parseCSV(text);
-      
-      // Validate required fields
-      const requiredFields = ['title', 'company', 'location', 'job_type'];
-      const missingFields = [];
-      
-      for (const field of requiredFields) {
-        if (!parsedData[0][field]) {
-          missingFields.push(field);
-        }
-      }
-      
-      if (missingFields.length > 0) {
-        toast({
-          title: 'Invalid CSV format',
-          description: `Missing required fields: ${missingFields.join(', ')}`,
-          variant: 'destructive',
-        });
-        setIsUploading(false);
-        return;
-      }
-      
-      // Process the CSV data (mock implementation for now)
-      // In a real implementation, we would insert this data into Supabase
-      setTimeout(() => {
-        toast({
-          title: 'Upload successful',
-          description: `${parsedData.length} job listings have been processed.`,
-        });
-        
-        setIsUploading(false);
-        setCsvFile(null);
-      }, 1500);
-    } catch (error) {
-      console.error('Error processing CSV:', error);
-      toast({
-        title: 'Error processing CSV',
-        description: 'There was an error processing the CSV file.',
-        variant: 'destructive',
-      });
-      setIsUploading(false);
-    }
-  };
-  
   const handleAddJob = () => {
     toast({
       title: 'Feature in development',
@@ -174,62 +69,10 @@ const AdminPage = () => {
     });
   };
   
-  const handleDeleteJob = (jobId: string) => {
-    // In a real implementation, this would delete from Supabase
-    setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
-    
-    toast({
-      title: 'Job deleted',
-      description: `Job ID: ${jobId} has been removed.`,
-    });
-  };
-  
-  const handleDeleteUser = (userId: string) => {
-    // In a real implementation, this would delete from Supabase
-    setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
-    
-    toast({
-      title: 'User deleted',
-      description: `User ID: ${userId} has been removed.`,
-    });
-  };
-  
-  const handleExportJobs = () => {
-    // Create CSV content
-    const headers = ['id', 'title', 'company', 'location', 'job_type', 'posted_at'];
-    const csvContent = [
-      headers.join(','),
-      ...jobs.map(job => [
-        job.id,
-        job.title,
-        job.company,
-        job.location,
-        job.job_type,
-        new Date(job.posted_at).toLocaleDateString()
-      ].join(','))
-    ].join('\n');
-    
-    // Create a Blob and download link
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `job-listings-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: 'Export successful',
-      description: `${jobs.length} job listings have been exported.`,
-    });
-  };
-  
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen">
-        <Navbar />
+        <Navbar onLogin={() => {}} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-riser-purple" />
@@ -242,7 +85,7 @@ const AdminPage = () => {
   
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
+      <Navbar onLogin={() => {}} />
       
       <main className="flex-1 bg-gray-50">
         <div className="container mx-auto px-4 py-8">
@@ -269,182 +112,15 @@ const AdminPage = () => {
             </TabsList>
             
             <TabsContent value="jobs">
-              <div className="bg-white p-6 rounded-lg border">
-                <div className="flex justify-between mb-6">
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input 
-                      type="text" 
-                      placeholder="Search jobs..." 
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="flex items-center gap-2"
-                    onClick={handleExportJobs}
-                  >
-                    <Download className="h-4 w-4" /> Export
-                  </Button>
-                </div>
-                
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[100px]">ID</TableHead>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Posted On</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredJobs.map((job) => (
-                        <TableRow key={job.id}>
-                          <TableCell className="font-medium">{job.id.slice(0, 5)}...</TableCell>
-                          <TableCell>{job.title}</TableCell>
-                          <TableCell>{job.company}</TableCell>
-                          <TableCell>{job.job_type}</TableCell>
-                          <TableCell>{job.location}</TableCell>
-                          <TableCell>{new Date(job.posted_at).toLocaleDateString()}</TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteJob(job.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                
-                {filteredJobs.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No jobs found matching your search.</p>
-                  </div>
-                )}
-              </div>
+              <JobsTab jobs={jobs} setJobs={setJobs} />
             </TabsContent>
             
             <TabsContent value="users">
-              <div className="bg-white p-6 rounded-lg border">
-                <div className="flex justify-between mb-6">
-                  <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input 
-                      type="text" 
-                      placeholder="Search users..." 
-                      className="pl-10"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[100px]">ID</TableHead>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Saved Jobs</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.id}</TableCell>
-                          <TableCell>{user.name}</TableCell>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell>{user.savedJobs?.length || 0}</TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
+              <UsersTab users={users} setUsers={setUsers} />
             </TabsContent>
             
             <TabsContent value="upload">
-              <div className="bg-white p-6 rounded-lg border">
-                <h2 className="text-xl font-semibold mb-4">Upload CSV File</h2>
-                <p className="text-muted-foreground mb-6">
-                  Upload a CSV file containing job listings. The file should include columns for title, company, location,
-                  description, salary, job type, and more.
-                </p>
-                
-                <div className="space-y-6">
-                  <div className="grid w-full max-w-sm items-center gap-1.5">
-                    <Label htmlFor="csv-file">CSV File</Label>
-                    <Input 
-                      id="csv-file"
-                      type="file" 
-                      accept=".csv" 
-                      onChange={handleFileChange}
-                    />
-                  </div>
-                  
-                  <div>
-                    <Button
-                      onClick={handleUpload}
-                      disabled={!csvFile || isUploading}
-                      className="bg-riser-purple hover:bg-riser-secondary-purple"
-                    >
-                      {isUploading ? (
-                        <>
-                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload and Process
-                        </>
-                      )}
-                    </Button>
-                    {csvFile && (
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        Selected file: {csvFile.name}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="mt-8 p-4 bg-green-50 text-green-800 rounded-md flex items-start">
-                    <FileCheck2 className="h-5 w-5 mr-3 mt-0.5" />
-                    <div>
-                      <p className="font-medium">CSV Format Requirements:</p>
-                      <ul className="list-disc pl-5 text-sm mt-1 space-y-1">
-                        <li>Include headers: title, company, location, salary_min, salary_max, etc.</li>
-                        <li>Use UTF-8 encoding</li>
-                        <li>Max file size: 5MB</li>
-                        <li>Required fields: title, company, location, job_type</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <CsvUploadTab />
             </TabsContent>
           </Tabs>
         </div>
