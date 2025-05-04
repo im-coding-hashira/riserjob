@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
-import { Search, Download, Trash2 } from 'lucide-react';
+import { Search, Download, Trash2, Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { Job } from '@/lib/types';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import AddJobForm from './AddJobForm';
 
 interface JobsTabProps {
   jobs: Job[];
@@ -14,6 +16,7 @@ interface JobsTabProps {
 
 const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
   const { toast } = useToast();
 
   // Filter jobs based on search term
@@ -29,6 +32,23 @@ const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
     toast({
       title: 'Job deleted',
       description: `Job ID: ${jobId} has been removed.`,
+    });
+  };
+
+  const handleEditJob = (job: Job) => {
+    setEditingJob(job);
+  };
+
+  const handleJobUpdated = (updatedJob: Job) => {
+    setJobs(prevJobs => 
+      prevJobs.map(job => job.id === updatedJob.id ? updatedJob : job)
+    );
+    
+    setEditingJob(null);
+    
+    toast({
+      title: 'Job updated',
+      description: `"${updatedJob.title}" has been updated.`,
     });
   };
 
@@ -108,7 +128,15 @@ const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
                 <TableCell>{job.job_type}</TableCell>
                 <TableCell>{job.location}</TableCell>
                 <TableCell>{new Date(job.posted_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right space-x-1">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleEditJob(job)}
+                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
                   <Button 
                     variant="ghost" 
                     size="sm"
@@ -129,6 +157,19 @@ const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
           <p className="text-muted-foreground">No jobs found matching your search.</p>
         </div>
       )}
+
+      <Dialog open={editingJob !== null} onOpenChange={() => setEditingJob(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {editingJob && (
+            <AddJobForm 
+              initialData={editingJob}
+              onJobAdded={handleJobUpdated} 
+              onCancel={() => setEditingJob(null)} 
+              isEditing
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

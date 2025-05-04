@@ -13,11 +13,15 @@ import {
   FileText,
   Users,
   Upload,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import JobsTab from '@/components/admin/JobsTab';
 import UsersTab from '@/components/admin/UsersTab';
 import CsvUploadTab from '@/components/admin/CsvUploadTab';
+import AddJobForm from '@/components/admin/AddJobForm';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Job } from '@/lib/types';
 
 const ADMIN_EMAIL = 'iam.refiction@gmail.com';
 
@@ -29,6 +33,7 @@ const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [jobs, setJobs] = useState(mockJobs);
   const [users, setUsers] = useState(mockUsers);
+  const [isAddJobDialogOpen, setIsAddJobDialogOpen] = useState(false);
   
   // Verify admin access
   useEffect(() => {
@@ -63,10 +68,12 @@ const AdminPage = () => {
   }, [user, navigate, toast]);
   
   const handleAddJob = () => {
-    toast({
-      title: 'Feature in development',
-      description: 'The add job feature will be available soon.',
-    });
+    setIsAddJobDialogOpen(true);
+  };
+  
+  const handleJobAdded = (newJob: Job) => {
+    setJobs(prevJobs => [newJob, ...prevJobs]);
+    setIsAddJobDialogOpen(false);
   };
   
   if (isLoading) {
@@ -125,6 +132,15 @@ const AdminPage = () => {
           </Tabs>
         </div>
       </main>
+      
+      <Dialog open={isAddJobDialogOpen} onOpenChange={setIsAddJobDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <AddJobForm 
+            onJobAdded={handleJobAdded} 
+            onCancel={() => setIsAddJobDialogOpen(false)} 
+          />
+        </DialogContent>
+      </Dialog>
       
       <footer className="bg-white border-t border-gray-200 py-6">
         <div className="container mx-auto px-4">
