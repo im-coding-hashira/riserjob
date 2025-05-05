@@ -4,9 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { mockJobs, mockUsers } from '@/lib/mockData';
+import { mockUsers } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { 
   Plus,
   FileText,
@@ -30,7 +31,7 @@ const AdminPage = () => {
   const { user, signOut } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
-  const [jobs, setJobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [users, setUsers] = useState(mockUsers);
   const [isAddJobDialogOpen, setIsAddJobDialogOpen] = useState(false);
   
@@ -67,7 +68,6 @@ const AdminPage = () => {
         }
         
         console.log("Admin access granted");
-        // Load real data from Supabase here when we integrate it
         setIsLoading(false);
       }, 500);
     };
@@ -79,14 +79,50 @@ const AdminPage = () => {
     setIsAddJobDialogOpen(true);
   };
   
-  const handleJobAdded = (newJob: Job) => {
-    setJobs(prevJobs => [newJob, ...prevJobs]);
-    setIsAddJobDialogOpen(false);
-    
-    toast({
-      title: 'Success',
-      description: 'Job has been added successfully.',
-    });
+  const handleJobAdded = async (newJob: Job) => {
+    try {
+      setIsLoading(true);
+      
+      // Insert job into Supabase
+      const { data, error } = await supabase
+        .from('jobs')
+        .insert({
+          title: newJob.title,
+          company: newJob.company,
+          location: newJob.location,
+          job_type: newJob.job_type,
+          experience_level: newJob.experience_level,
+          salary_min: newJob.salary_min,
+          salary_max: newJob.salary_max,
+          remote: newJob.remote,
+          description: newJob.description,
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Update local state with the newly created job
+      if (data) {
+        setJobs(prevJobs => [data, ...prevJobs]);
+      }
+      
+      setIsAddJobDialogOpen(false);
+      
+      toast({
+        title: 'Success',
+        description: 'Job has been added successfully.',
+      });
+    } catch (error: any) {
+      console.error('Error adding job:', error.message);
+      toast({
+        title: 'Error adding job',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   if (isLoading) {

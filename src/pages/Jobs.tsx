@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
-import { mockJobs } from '@/lib/mockData';
 import { Job, SearchFilters } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import UserAuth from '@/components/UserAuth';
 import JobsHeader from '@/components/jobs/JobsHeader';
 import JobListings from '@/components/jobs/JobListings';
@@ -20,20 +20,81 @@ const Jobs = () => {
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>(mockJobs);
-  const [loading, setLoading] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const jobsPerPage = 5;
   
   const initialKeyword = searchParams.get('keyword') || '';
   const initialLocation = searchParams.get('location') || '';
+
+  // Fetch jobs from Supabase
+  useEffect(() => {
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        
+        const { data, error } = await supabase
+          .from('jobs')
+          .select('*')
+          .order('posted_at', { ascending: false });
+          
+        if (error) throw error;
+        
+        if (data) {
+          setJobs(data);
+          setFilteredJobs(data);
+        }
+      } catch (error: any) {
+        console.error('Error fetching jobs:', error.message);
+        toast({
+          title: 'Error fetching jobs',
+          description: 'Failed to load job listings. Please try again later.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchJobs();
+  }, [toast]);
+  
+  // Fetch saved jobs if user is logged in
+  useEffect(() => {
+    const fetchSavedJobs = async () => {
+      if (!user) {
+        setSavedJobs([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('saved_jobs')
+          .select('job_id')
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+        
+        if (data) {
+          const savedJobIds = data.map(item => item.job_id);
+          setSavedJobs(savedJobIds);
+        }
+      } catch (error: any) {
+        console.error('Error fetching saved jobs:', error.message);
+      }
+    };
+    
+    fetchSavedJobs();
+  }, [user]);
   
   // Process and filter jobs based on URL params and filters
   // Using useCallback to avoid recreating this function on every render
   const filterJobs = useCallback((filters: SearchFilters) => {
     setLoading(true);
     
-    let results = [...mockJobs];
+    let results = [...jobs];
     
     // Filter by keyword in title or company
     if (filters.keyword) {
@@ -74,11 +135,10 @@ const Jobs = () => {
       results = results.filter(job => job.remote);
     }
     
-    // Remove the setTimeout to prevent flickering and unnecessary delays
     setFilteredJobs(results);
     setCurrentPage(1);
     setLoading(false);
-  }, []);
+  }, [jobs]);
   
   // Parse search filters from URL on component mount or when location.search changes
   useEffect(() => {
@@ -88,24 +148,57 @@ const Jobs = () => {
     if (initialLocation) initialFilters.location = initialLocation;
     
     filterJobs(initialFilters);
-  }, [location.search, filterJobs]); // Add filterJobs to dependencies since we're using useCallback
+  }, [location.search, filterJobs, jobs]); 
   
   const handleFilterChange = (filters: SearchFilters) => {
     filterJobs(filters);
   };
   
-  const handleToggleSave = (jobId: string) => {
-    if (savedJobs.includes(jobId)) {
-      setSavedJobs(prev => prev.filter(id => id !== jobId));
+  const handleToggleSave = async (jobId: string) => {
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+    
+    try {
+      if (savedJobs.includes(jobId)) {
+        // Remove from saved jobs
+        const { error } = await supabase
+          .from('saved_jobs')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('job_id', jobId);
+          
+        if (error) throw error;
+        
+        setSavedJobs(prev => prev.filter(id => id !== jobId));
+        toast({
+          title: "Job removed from saved jobs",
+          description: "You can add it back anytime.",
+        });
+      } else {
+        // Add to saved jobs
+        const { error } = await supabase
+          .from('saved_jobs')
+          .insert({
+            user_id: user.id,
+            job_id: jobId
+          });
+          
+        if (error) throw error;
+        
+        setSavedJobs(prev => [...prev, jobId]);
+        toast({
+          title: "Job saved successfully",
+          description: "You can view all saved jobs in your profile.",
+        });
+      }
+    } catch (error: any) {
+      console.error('Error toggling saved job:', error.message);
       toast({
-        title: "Job removed from saved jobs",
-        description: "You can add it back anytime.",
-      });
-    } else {
-      setSavedJobs(prev => [...prev, jobId]);
-      toast({
-        title: "Job saved successfully",
-        description: "You can view all saved jobs in your profile.",
+        title: "Error saving job",
+        description: error.message,
+        variant: 'destructive',
       });
     }
   };

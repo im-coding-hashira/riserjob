@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import JobCard from '@/components/JobCard';
 import UserAuth from '@/components/UserAuth';
-import { mockJobs } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +20,7 @@ const Profile = () => {
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState(false);
   const [userProfile, setUserProfile] = useState({
     name: '',
     email: '',
@@ -57,21 +57,80 @@ const Profile = () => {
       };
       
       fetchUserProfile();
-      
-      // In a real app, you'd fetch the user's saved jobs from your backend
-      // For now, using mock data
-      const mockSavedJobIds = ['job1', 'job3']; // Example IDs
-      const userSavedJobs = mockJobs.filter(job => mockSavedJobIds.includes(job.id));
-      setSavedJobs(userSavedJobs);
+      fetchSavedJobs();
     }
   }, [user, authLoading, navigate]);
   
-  const handleRemoveSavedJob = (jobId: string) => {
-    setSavedJobs(prev => prev.filter(job => job.id !== jobId));
-    toast({
-      title: "Job removed from saved jobs",
-      description: "You can add it back anytime.",
-    });
+  // Fetch saved jobs from Supabase
+  const fetchSavedJobs = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoadingJobs(true);
+      
+      // First get the saved job IDs
+      const { data: savedJobsData, error: savedJobsError } = await supabase
+        .from('saved_jobs')
+        .select('job_id')
+        .eq('user_id', user.id);
+        
+      if (savedJobsError) throw savedJobsError;
+      
+      if (savedJobsData && savedJobsData.length > 0) {
+        const jobIds = savedJobsData.map(item => item.job_id);
+        
+        // Then fetch the actual job details
+        const { data: jobsData, error: jobsError } = await supabase
+          .from('jobs')
+          .select('*')
+          .in('id', jobIds);
+          
+        if (jobsError) throw jobsError;
+        
+        if (jobsData) {
+          setSavedJobs(jobsData);
+        }
+      } else {
+        setSavedJobs([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching saved jobs:', error.message);
+      toast({
+        title: 'Error fetching saved jobs',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  };
+  
+  const handleRemoveSavedJob = async (jobId: string) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('saved_jobs')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('job_id', jobId);
+        
+      if (error) throw error;
+      
+      setSavedJobs(prev => prev.filter(job => job.id !== jobId));
+      
+      toast({
+        title: "Job removed from saved jobs",
+        description: "You can add it back anytime.",
+      });
+    } catch (error: any) {
+      console.error('Error removing saved job:', error.message);
+      toast({
+        title: 'Error removing saved job',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
   
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -141,7 +200,11 @@ const Profile = () => {
               <div className="bg-white p-6 rounded-lg border">
                 <h2 className="text-xl font-semibold mb-4">Your Saved Jobs</h2>
                 
-                {savedJobs.length > 0 ? (
+                {isLoadingJobs ? (
+                  <div className="flex justify-center items-center py-20">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-riser-purple"></div>
+                  </div>
+                ) : savedJobs.length > 0 ? (
                   <div className="space-y-4">
                     {savedJobs.map(job => (
                       <JobCard 

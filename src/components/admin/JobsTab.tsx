@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Download, Trash2, Edit } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Job } from '@/lib/types';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import AddJobForm from './AddJobForm';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from 'lucide-react';
 
 interface JobsTabProps {
   jobs: Job[];
@@ -17,7 +19,40 @@ interface JobsTabProps {
 const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  // Fetch jobs from Supabase
+  const fetchJobs = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('*')
+        .order('posted_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setJobs(data);
+      }
+    } catch (error: any) {
+      console.error('Error fetching jobs:', error.message);
+      toast({
+        title: 'Error fetching jobs',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter jobs based on search term
   const filteredJobs = jobs.filter(job => 
@@ -25,31 +60,83 @@ const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
     job.company.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleDeleteJob = (jobId: string) => {
-    // In a real implementation, this would delete from Supabase
-    setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
-    
-    toast({
-      title: 'Job deleted',
-      description: `Job ID: ${jobId} has been removed.`,
-    });
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from('jobs')
+        .delete()
+        .eq('id', jobId);
+        
+      if (error) throw error;
+      
+      // Update local state after successful delete
+      setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId));
+      
+      toast({
+        title: 'Job deleted',
+        description: `Job has been removed successfully.`,
+      });
+    } catch (error: any) {
+      console.error('Error deleting job:', error.message);
+      toast({
+        title: 'Error deleting job',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEditJob = (job: Job) => {
     setEditingJob(job);
   };
 
-  const handleJobUpdated = (updatedJob: Job) => {
-    setJobs(prevJobs => 
-      prevJobs.map(job => job.id === updatedJob.id ? updatedJob : job)
-    );
-    
-    setEditingJob(null);
-    
-    toast({
-      title: 'Job updated',
-      description: `"${updatedJob.title}" has been updated.`,
-    });
+  const handleJobUpdated = async (updatedJob: Job) => {
+    try {
+      setIsLoading(true);
+      
+      const { error } = await supabase
+        .from('jobs')
+        .update({
+          title: updatedJob.title,
+          company: updatedJob.company,
+          location: updatedJob.location,
+          job_type: updatedJob.job_type,
+          experience_level: updatedJob.experience_level,
+          salary_min: updatedJob.salary_min,
+          salary_max: updatedJob.salary_max,
+          remote: updatedJob.remote,
+          description: updatedJob.description,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', updatedJob.id);
+        
+      if (error) throw error;
+      
+      // Update local state after successful update
+      setJobs(prevJobs => 
+        prevJobs.map(job => job.id === updatedJob.id ? updatedJob : job)
+      );
+      
+      setEditingJob(null);
+      
+      toast({
+        title: 'Job updated',
+        description: `"${updatedJob.title}" has been updated.`,
+      });
+    } catch (error: any) {
+      console.error('Error updating job:', error.message);
+      toast({
+        title: 'Error updating job',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleExportJobs = () => {
@@ -106,56 +193,66 @@ const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
         </Button>
       </div>
       
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[100px]">ID</TableHead>
-              <TableHead>Title</TableHead>
-              <TableHead>Company</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Posted On</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredJobs.map((job) => (
-              <TableRow key={job.id}>
-                <TableCell className="font-medium">{job.id.slice(0, 5)}...</TableCell>
-                <TableCell>{job.title}</TableCell>
-                <TableCell>{job.company}</TableCell>
-                <TableCell>{job.job_type}</TableCell>
-                <TableCell>{job.location}</TableCell>
-                <TableCell>{new Date(job.posted_at).toLocaleDateString()}</TableCell>
-                <TableCell className="text-right space-x-1">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleEditJob(job)}
-                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => handleDeleteJob(job.id)}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      
-      {filteredJobs.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">No jobs found matching your search.</p>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-riser-purple" />
         </div>
+      ) : (
+        <>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">ID</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Posted On</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredJobs.map((job) => (
+                  <TableRow key={job.id}>
+                    <TableCell className="font-medium">{job.id.slice(0, 5)}...</TableCell>
+                    <TableCell>{job.title}</TableCell>
+                    <TableCell>{job.company}</TableCell>
+                    <TableCell>{job.job_type}</TableCell>
+                    <TableCell>{job.location}</TableCell>
+                    <TableCell>{new Date(job.posted_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-right space-x-1">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleEditJob(job)}
+                        className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => handleDeleteJob(job.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          
+          {filteredJobs.length === 0 && (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">
+                {isLoading ? "Loading jobs..." : "No jobs found matching your search."}
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       <Dialog open={editingJob !== null} onOpenChange={() => setEditingJob(null)}>
