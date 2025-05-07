@@ -18,6 +18,7 @@ const SavedJobsTab = () => {
       
       try {
         setLoading(true);
+        console.log('Fetching saved jobs for profile page, user:', user.id);
         
         // Get all saved job IDs for the current user
         const { data: savedJobIds, error: savedJobsError } = await supabase
@@ -25,7 +26,12 @@ const SavedJobsTab = () => {
           .select('job_id')
           .eq('user_id', user.id);
           
-        if (savedJobsError) throw savedJobsError;
+        if (savedJobsError) {
+          console.error('Supabase error fetching saved job IDs:', savedJobsError);
+          throw savedJobsError;
+        }
+        
+        console.log('Saved job IDs data:', savedJobIds);
         
         if (!savedJobIds || savedJobIds.length === 0) {
           setSavedJobs([]);
@@ -35,6 +41,7 @@ const SavedJobsTab = () => {
         
         // Get all job details based on saved job IDs
         const jobIds = savedJobIds.map((item: any) => item.job_id).filter(Boolean);
+        console.log('Job IDs to fetch:', jobIds);
         
         if (jobIds.length === 0) {
           setSavedJobs([]);
@@ -47,7 +54,12 @@ const SavedJobsTab = () => {
           .select('*')
           .in('job_id', jobIds);
           
-        if (jobsError) throw jobsError;
+        if (jobsError) {
+          console.error('Supabase error fetching job details:', jobsError);
+          throw jobsError;
+        }
+        
+        console.log('Jobs data for saved jobs:', jobsData);
         
         if (jobsData) {
           // Map the database fields to our Job type
@@ -64,6 +76,7 @@ const SavedJobsTab = () => {
             source: job.source_portal || '',
           }));
           
+          console.log('Formatted saved jobs:', formattedJobs);
           setSavedJobs(formattedJobs);
         }
       } catch (error: any) {
@@ -85,13 +98,17 @@ const SavedJobsTab = () => {
     if (!user) return;
     
     try {
+      console.log('Removing saved job:', jobId);
       const { error } = await supabase
         .from('saved_jobs')
         .delete()
         .eq('user_id', user.id)
         .eq('job_id', jobId);
         
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error removing saved job:', error);
+        throw error;
+      }
       
       // Update UI
       setSavedJobs(prev => prev.filter(job => job.id !== jobId));

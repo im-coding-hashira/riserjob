@@ -18,15 +18,23 @@ export const useSavedJobs = (user: User | null) => {
     const fetchSavedJobs = async () => {
       try {
         setLoading(true);
+        console.log('Fetching saved jobs for user:', user.id);
+        
         const { data, error } = await supabase
           .from('saved_jobs')
           .select('job_id')
           .eq('user_id', user.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Supabase error fetching saved jobs:', error);
+          throw error;
+        }
 
+        console.log('Saved jobs data:', data);
+        
         if (data) {
           const jobIds = data.map(item => item.job_id).filter(Boolean) as string[];
+          console.log('Saved job IDs:', jobIds);
           setSavedJobs(jobIds);
         }
       } catch (error: any) {
@@ -43,15 +51,21 @@ export const useSavedJobs = (user: User | null) => {
     if (!user) return;
 
     try {
+      console.log('Toggle save job:', jobId, 'for user:', user.id);
       const isSaved = savedJobs.includes(jobId);
 
       if (isSaved) {
         // Remove job from saved_jobs
-        await supabase
+        const { error } = await supabase
           .from('saved_jobs')
           .delete()
           .eq('user_id', user.id)
           .eq('job_id', jobId);
+
+        if (error) {
+          console.error('Supabase error removing saved job:', error);
+          throw error;
+        }
 
         setSavedJobs(savedJobs.filter(id => id !== jobId));
 
@@ -61,12 +75,17 @@ export const useSavedJobs = (user: User | null) => {
         });
       } else {
         // Add job to saved_jobs
-        await supabase
+        const { error } = await supabase
           .from('saved_jobs')
           .insert({
             user_id: user.id,
             job_id: jobId,
           });
+
+        if (error) {
+          console.error('Supabase error adding saved job:', error);
+          throw error;
+        }
 
         setSavedJobs([...savedJobs, jobId]);
 
