@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { customSupabaseClient as supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Job } from '@/lib/types';
@@ -34,17 +34,37 @@ const SavedJobsTab = () => {
         }
         
         // Get all job details based on saved job IDs
-        const jobIds = savedJobIds.map((item: any) => item.job_id);
+        const jobIds = savedJobIds.map((item: any) => item.job_id).filter(Boolean);
+        
+        if (jobIds.length === 0) {
+          setSavedJobs([]);
+          setLoading(false);
+          return;
+        }
         
         const { data: jobsData, error: jobsError } = await supabase
           .from('jobs')
           .select('*')
-          .in('id', jobIds);
+          .in('job_id', jobIds);
           
         if (jobsError) throw jobsError;
         
         if (jobsData) {
-          setSavedJobs(jobsData as unknown as Job[]);
+          // Map the database fields to our Job type
+          const formattedJobs: Job[] = jobsData.map(job => ({
+            id: job.job_id || '',
+            title: job.title || '',
+            company: job.company || '',
+            location: job.location || '',
+            job_type: job.job_type as any || 'Full-time',
+            experience_level: 'Mid', // Default value since it might not exist in DB
+            remote: job.is_remote || false,
+            description: job.description || '',
+            posted_at: new Date().toISOString(), // Using current date since posted_at doesn't exist in DB
+            source: job.source_portal || '',
+          }));
+          
+          setSavedJobs(formattedJobs);
         }
       } catch (error: any) {
         console.error('Error fetching saved jobs:', error.message);

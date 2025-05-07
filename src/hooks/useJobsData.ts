@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { customSupabaseClient as supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Job } from '@/lib/types';
 
@@ -21,7 +21,7 @@ export const useJobsData = () => {
         if (error) throw error;
         
         if (data) {
-          // Map the database fields to our Job type
+          // Map the database fields to our Job type based on actual DB schema
           const formattedJobs: Job[] = data.map(job => ({
             id: job.job_id || '',
             title: job.title || '',
@@ -31,7 +31,7 @@ export const useJobsData = () => {
             experience_level: 'Mid', // Default value since it might not exist in DB
             remote: job.is_remote || false,
             description: job.description || '',
-            posted_at: new Date().toISOString(), // Default to current date if not in DB
+            posted_at: new Date().toISOString(), // Using current date since posted_at doesn't exist in DB
             source: job.source_portal || '',
           }));
           
