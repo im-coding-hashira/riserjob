@@ -4,7 +4,7 @@ import { useLocation, useSearchParams } from 'react-router-dom';
 import { Job, SearchFilters } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { customSupabaseClient as supabase } from '@/lib/supabase';
 import JobListings from '@/components/jobs/JobListings';
 
 interface JobsContainerProps {
@@ -36,13 +36,13 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
         const { data, error } = await supabase
           .from('jobs')
           .select('*')
-          .order('posted_at', { ascending: false }) as any;
+          .order('posted_at', { ascending: false });
           
         if (error) throw error;
         
         if (data) {
-          setJobs(data as Job[]);
-          setFilteredJobs(data as Job[]);
+          setJobs(data as unknown as Job[]);
+          setFilteredJobs(data as unknown as Job[]);
         }
       } catch (error: any) {
         console.error('Error fetching jobs:', error.message);
@@ -71,7 +71,7 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
         const { data, error } = await supabase
           .from('saved_jobs')
           .select('job_id')
-          .eq('user_id', user.id) as any;
+          .eq('user_id', user.id);
           
         if (error) throw error;
         
@@ -111,12 +111,12 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
     
     // Filter by job type
     if (filters.job_type && filters.job_type.length > 0) {
-      results = results.filter(job => filters.job_type!.includes(job.job_type));
+      results = results.filter(job => filters.job_type!.includes(job.job_type as any));
     }
     
     // Filter by experience level
     if (filters.experience_level && filters.experience_level.length > 0) {
-      results = results.filter(job => filters.experience_level!.includes(job.experience_level));
+      results = results.filter(job => filters.experience_level!.includes(job.experience_level as any));
     }
     
     // Filter by salary range
@@ -164,7 +164,7 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
           .from('saved_jobs')
           .delete()
           .eq('user_id', user.id)
-          .eq('job_id', jobId) as any;
+          .eq('job_id', jobId);
           
         if (error) throw error;
         
@@ -180,7 +180,7 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
           .insert({
             user_id: user.id,
             job_id: jobId
-          }) as any;
+          } as any);
           
         if (error) throw error;
         

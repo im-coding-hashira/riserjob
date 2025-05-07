@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -7,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { mockUsers } from '@/lib/mockData';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { customSupabaseClient as supabase } from '@/lib/supabase';
 import { 
   Plus,
   FileText,
@@ -96,15 +95,14 @@ const AdminPage = () => {
           salary_max: newJob.salary_max,
           remote: newJob.remote,
           description: newJob.description,
-        })
-        .select()
-        .single();
+        } as any)
+        .select();
         
       if (error) throw error;
       
       // Update local state with the newly created job
       if (data) {
-        setJobs(prevJobs => [data, ...prevJobs]);
+        setJobs(prevJobs => [data[0] as unknown as Job, ...prevJobs]);
       }
       
       setIsAddJobDialogOpen(false);

@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      jobs: {
+        Row: {
+          apply_url: string | null
+          company: string | null
+          description: string | null
+          is_remote: boolean | null
+          job_id: string
+          job_type: string | null
+          location: string | null
+          source_portal: string | null
+          title: string | null
+        }
+        Insert: {
+          apply_url?: string | null
+          company?: string | null
+          description?: string | null
+          is_remote?: boolean | null
+          job_id?: string
+          job_type?: string | null
+          location?: string | null
+          source_portal?: string | null
+          title?: string | null
+        }
+        Update: {
+          apply_url?: string | null
+          company?: string | null
+          description?: string | null
+          is_remote?: boolean | null
+          job_id?: string
+          job_type?: string | null
+          location?: string | null
+          source_portal?: string | null
+          title?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -35,6 +71,42 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      saved_jobs: {
+        Row: {
+          created_at: string
+          id: number
+          job_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          job_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          job_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_jobs_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["job_id"]
+          },
+          {
+            foreignKeyName: "saved_jobs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

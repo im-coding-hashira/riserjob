@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Job } from '@/lib/types';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import AddJobForm from './AddJobForm';
-import { supabase } from '@/integrations/supabase/client';
+import { customSupabaseClient as supabase } from '@/lib/supabase';
 import { Loader2 } from 'lucide-react';
 
 interface JobsTabProps {
@@ -40,7 +40,7 @@ const JobsTab: React.FC<JobsTabProps> = ({ jobs, setJobs }) => {
       }
 
       if (data) {
-        setJobs(data);
+        setJobs(data as unknown as Job[]);
       }
     } catch (error: any) {
       console.error('Error fetching jobs:', error.message);
