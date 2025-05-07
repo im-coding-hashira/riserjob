@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { Job, SearchFilters } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
+import { SearchFilters } from '@/lib/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { customSupabaseClient as supabase } from '@/lib/supabase';
 import JobListings from '@/components/jobs/JobListings';
+import { useJobsData } from '@/hooks/useJobsData';
+import { useJobFiltering } from '@/hooks/useJobFiltering';
+import { usePagination } from '@/hooks/usePagination';
+import { useSavedJobs } from '@/hooks/useSavedJobs';
 
 interface JobsContainerProps {
   onOpenAuth: () => void;
@@ -14,128 +16,32 @@ interface JobsContainerProps {
 const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { toast } = useToast();
   const { user } = useAuth();
   
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const jobsPerPage = 5;
-  
   const initialKeyword = searchParams.get('keyword') || '';
   const initialLocation = searchParams.get('location') || '';
-
-  // Fetch jobs from Supabase
-  useEffect(() => {
-    const fetchJobs = async () => {
-      try {
-        setLoading(true);
-        
-        const { data, error } = await supabase
-          .from('jobs')
-          .select('*')
-          .order('posted_at', { ascending: false });
-          
-        if (error) throw error;
-        
-        if (data) {
-          setJobs(data as unknown as Job[]);
-          setFilteredJobs(data as unknown as Job[]);
-        }
-      } catch (error: any) {
-        console.error('Error fetching jobs:', error.message);
-        toast({
-          title: 'Error fetching jobs',
-          description: 'Failed to load job listings. Please try again later.',
-          variant: 'destructive',
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchJobs();
-  }, [toast]);
   
-  // Fetch saved jobs if user is logged in
-  useEffect(() => {
-    const fetchSavedJobs = async () => {
-      if (!user) {
-        setSavedJobs([]);
-        return;
-      }
-      
-      try {
-        const { data, error } = await supabase
-          .from('saved_jobs')
-          .select('job_id')
-          .eq('user_id', user.id);
-          
-        if (error) throw error;
-        
-        if (data) {
-          const savedJobIds = data.map((item: any) => item.job_id);
-          setSavedJobs(savedJobIds);
-        }
-      } catch (error: any) {
-        console.error('Error fetching saved jobs:', error.message);
-      }
-    };
-    
-    fetchSavedJobs();
-  }, [user]);
+  // Get jobs data
+  const { jobs, loading: jobsLoading } = useJobsData();
   
-  // Filter jobs based on criteria
-  const filterJobs = useCallback((filters: SearchFilters) => {
-    setLoading(true);
-    
-    let results = [...jobs];
-    
-    // Filter by keyword in title or company
-    if (filters.keyword) {
-      const keyword = filters.keyword.toLowerCase();
-      results = results.filter(job => 
-        job.title.toLowerCase().includes(keyword) || 
-        job.company.toLowerCase().includes(keyword) ||
-        job.description.toLowerCase().includes(keyword)
-      );
-    }
-    
-    // Filter by location
-    if (filters.location) {
-      const location = filters.location.toLowerCase();
-      results = results.filter(job => job.location.toLowerCase().includes(location));
-    }
-    
-    // Filter by job type
-    if (filters.job_type && filters.job_type.length > 0) {
-      results = results.filter(job => filters.job_type!.includes(job.job_type as any));
-    }
-    
-    // Filter by experience level
-    if (filters.experience_level && filters.experience_level.length > 0) {
-      results = results.filter(job => filters.experience_level!.includes(job.experience_level as any));
-    }
-    
-    // Filter by salary range
-    if (filters.salary_min !== undefined) {
-      results = results.filter(job => !job.salary_max || job.salary_max >= filters.salary_min!);
-    }
-    if (filters.salary_max !== undefined) {
-      results = results.filter(job => !job.salary_min || job.salary_min <= filters.salary_max!);
-    }
-    
-    // Filter by remote option
-    if (filters.remote) {
-      results = results.filter(job => job.remote);
-    }
-    
-    setFilteredJobs(results);
-    setCurrentPage(1);
-    setLoading(false);
-  }, [jobs]);
+  // Filter jobs
+  const { filteredJobs, filterJobs } = useJobFiltering(jobs);
+  
+  // Pagination
+  const { 
+    currentPage, 
+    totalPages, 
+    paginate, 
+    indexOfFirstItem, 
+    indexOfLastItem 
+  } = usePagination(filteredJobs.length, jobsPerPage);
+  
+  // Saved jobs
+  const { savedJobs, toggleSaveJob } = useSavedJobs(user);
+  
+  // Get current jobs to display
+  const currentJobs = filteredJobs.slice(indexOfFirstItem, indexOfLastItem);
   
   // Parse search filters from URL on component mount or when location.search changes
   useEffect(() => {
@@ -145,7 +51,7 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
     if (initialLocation) initialFilters.location = initialLocation;
     
     filterJobs(initialFilters);
-  }, [location.search, filterJobs, jobs]);
+  }, [location.search, filterJobs]);
   
   const handleFilterChange = (filters: SearchFilters) => {
     filterJobs(filters);
@@ -157,69 +63,13 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
       return;
     }
     
-    try {
-      if (savedJobs.includes(jobId)) {
-        // Remove from saved jobs
-        const { error } = await supabase
-          .from('saved_jobs')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('job_id', jobId);
-          
-        if (error) throw error;
-        
-        setSavedJobs(prev => prev.filter(id => id !== jobId));
-        toast({
-          title: "Job removed from saved jobs",
-          description: "You can add it back anytime.",
-        });
-      } else {
-        // Add to saved jobs
-        const { error } = await supabase
-          .from('saved_jobs')
-          .insert({
-            user_id: user.id,
-            job_id: jobId
-          } as any);
-          
-        if (error) throw error;
-        
-        setSavedJobs(prev => [...prev, jobId]);
-        toast({
-          title: "Job saved successfully",
-          description: "You can view all saved jobs in your profile.",
-        });
-      }
-    } catch (error: any) {
-      console.error('Error toggling saved job:', error.message);
-      toast({
-        title: "Error saving job",
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-  
-  // Pagination
-  const indexOfLastJob = currentPage * jobsPerPage;
-  const indexOfFirstJob = indexOfLastJob - jobsPerPage;
-  const currentJobs = filteredJobs.slice(indexOfFirstJob, indexOfLastJob);
-  const totalPages = Math.ceil(filteredJobs.length / jobsPerPage);
-  
-  const paginate = (pageNumber: number) => {
-    if (pageNumber > 0 && pageNumber <= totalPages) {
-      setCurrentPage(pageNumber);
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    }
+    await toggleSaveJob(jobId);
   };
   
   return (
     <JobListings
       jobs={currentJobs}
-      loading={loading}
+      loading={jobsLoading}
       savedJobs={savedJobs}
       onToggleSave={handleToggleSave}
       onFilterChange={handleFilterChange}
@@ -230,8 +80,8 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
       currentPage={currentPage}
       onPageChange={paginate}
       totalPages={totalPages}
-      indexOfFirstJob={indexOfFirstJob}
-      indexOfLastJob={indexOfLastJob}
+      indexOfFirstJob={indexOfFirstItem}
+      indexOfLastJob={indexOfLastItem}
       isLoggedIn={!!user}
       onLogin={onOpenAuth}
     />
