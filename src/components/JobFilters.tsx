@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Accordion } from "@/components/ui/accordion";
 import { JobType, ExperienceLevel, SearchFilters } from '@/lib/types';
 import FilterContainer from './jobs/filters/FilterContainer';
@@ -25,7 +25,8 @@ const JobFilters: React.FC<JobFiltersProps> = ({ onFilterChange, initialFilters 
   const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel[]>(initialFilters?.experience_level || []);
   const [remote, setRemote] = useState(initialFilters?.remote || false);
 
-  useEffect(() => {
+  // Use callback to prevent infinite re-renders
+  const updateFilters = useCallback(() => {
     const filters: SearchFilters = {
       keyword,
       location,
@@ -37,6 +38,11 @@ const JobFilters: React.FC<JobFiltersProps> = ({ onFilterChange, initialFilters 
     };
     onFilterChange(filters);
   }, [keyword, location, salaryRange, jobType, experienceLevel, remote, onFilterChange]);
+
+  // Only trigger filter changes when dependencies change
+  useEffect(() => {
+    updateFilters();
+  }, [updateFilters]);
 
   const handleJobTypeChange = (type: JobType) => {
     setJobType((prev) =>

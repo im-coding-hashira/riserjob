@@ -1,87 +1,89 @@
 
 import { useState, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
 import { customSupabaseClient as supabase } from '@/lib/supabase';
-import { User } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import { User } from '@supabase/supabase-js';
 
 export const useSavedJobs = (user: User | null) => {
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  
+
   useEffect(() => {
+    if (!user) {
+      setSavedJobs([]);
+      return;
+    }
+
     const fetchSavedJobs = async () => {
-      if (!user) {
-        setSavedJobs([]);
-        return;
-      }
-      
       try {
+        setLoading(true);
         const { data, error } = await supabase
           .from('saved_jobs')
           .select('job_id')
           .eq('user_id', user.id);
-          
+
         if (error) throw error;
-        
+
         if (data) {
-          const savedJobIds = data.map((item: any) => item.job_id);
-          setSavedJobs(savedJobIds);
+          const jobIds = data.map(item => item.job_id).filter(Boolean) as string[];
+          setSavedJobs(jobIds);
         }
       } catch (error: any) {
         console.error('Error fetching saved jobs:', error.message);
+      } finally {
+        setLoading(false);
       }
     };
-    
+
     fetchSavedJobs();
   }, [user]);
-  
+
   const toggleSaveJob = async (jobId: string) => {
-    if (!user) return false;
-    
+    if (!user) return;
+
     try {
-      if (savedJobs.includes(jobId)) {
-        // Remove from saved jobs
-        const { error } = await supabase
+      const isSaved = savedJobs.includes(jobId);
+
+      if (isSaved) {
+        // Remove job from saved_jobs
+        await supabase
           .from('saved_jobs')
           .delete()
           .eq('user_id', user.id)
           .eq('job_id', jobId);
-          
-        if (error) throw error;
-        
-        setSavedJobs(prev => prev.filter(id => id !== jobId));
+
+        setSavedJobs(savedJobs.filter(id => id !== jobId));
+
         toast({
-          title: "Job removed from saved jobs",
-          description: "You can add it back anytime.",
+          title: 'Job removed',
+          description: 'Job has been removed from your saved list',
         });
       } else {
-        // Add to saved jobs
-        const { error } = await supabase
+        // Add job to saved_jobs
+        await supabase
           .from('saved_jobs')
           .insert({
             user_id: user.id,
-            job_id: jobId
+            job_id: jobId,
           });
-          
-        if (error) throw error;
-        
-        setSavedJobs(prev => [...prev, jobId]);
+
+        setSavedJobs([...savedJobs, jobId]);
+
         toast({
-          title: "Job saved successfully",
-          description: "You can view all saved jobs in your profile.",
+          title: 'Job saved',
+          description: 'Job has been added to your saved list',
         });
       }
-      return true;
     } catch (error: any) {
       console.error('Error toggling saved job:', error.message);
       toast({
-        title: "Error saving job",
-        description: error.message,
+        title: 'Error',
+        description: 'Failed to update saved jobs. Please try again later.',
         variant: 'destructive',
       });
-      return false;
     }
   };
-  
-  return { savedJobs, toggleSaveJob };
+
+  return { savedJobs, toggleSaveJob, loading };
 };

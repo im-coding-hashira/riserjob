@@ -1,10 +1,10 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Job, SearchFilters } from '@/lib/types';
 
-export const useJobFiltering = (jobs: Job[], initialFilters?: SearchFilters) => {
+export const useJobFiltering = (jobs: Job[]) => {
   const [filteredJobs, setFilteredJobs] = useState<Job[]>(jobs);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // Filter jobs based on criteria
   const filterJobs = useCallback((filters: SearchFilters) => {
@@ -30,12 +30,12 @@ export const useJobFiltering = (jobs: Job[], initialFilters?: SearchFilters) => 
     
     // Filter by job type
     if (filters.job_type && filters.job_type.length > 0) {
-      results = results.filter(job => filters.job_type!.includes(job.job_type as any));
+      results = results.filter(job => filters.job_type!.includes(job.job_type));
     }
     
     // Filter by experience level
     if (filters.experience_level && filters.experience_level.length > 0) {
-      results = results.filter(job => filters.experience_level!.includes(job.experience_level as any));
+      results = results.filter(job => filters.experience_level!.includes(job.experience_level));
     }
     
     // Filter by salary range
@@ -54,6 +54,11 @@ export const useJobFiltering = (jobs: Job[], initialFilters?: SearchFilters) => 
     setFilteredJobs(results);
     setLoading(false);
     return results;
+  }, [jobs]);
+
+  // Update filtered jobs when job list changes
+  useEffect(() => {
+    setFilteredJobs(jobs);
   }, [jobs]);
   
   return {

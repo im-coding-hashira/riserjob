@@ -16,13 +16,26 @@ export const useJobsData = () => {
         
         const { data, error } = await supabase
           .from('jobs')
-          .select('*')
-          .order('posted_at', { ascending: false });
+          .select('*');
           
         if (error) throw error;
         
         if (data) {
-          setJobs(data);
+          // Map the database fields to our Job type
+          const formattedJobs: Job[] = data.map(job => ({
+            id: job.job_id || '',
+            title: job.title || '',
+            company: job.company || '',
+            location: job.location || '',
+            job_type: job.job_type as any || 'Full-time',
+            experience_level: 'Mid', // Default value since it might not exist in DB
+            remote: job.is_remote || false,
+            description: job.description || '',
+            posted_at: new Date().toISOString(), // Default to current date if not in DB
+            source: job.source_portal || '',
+          }));
+          
+          setJobs(formattedJobs);
         }
       } catch (error: any) {
         console.error('Error fetching jobs:', error.message);
