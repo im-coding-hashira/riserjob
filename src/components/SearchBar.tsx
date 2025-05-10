@@ -25,12 +25,12 @@ const SearchBar: React.FC = () => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const searchParams = new URLSearchParams();
-    if (keyword) searchParams.set('keyword', keyword);
-    if (location) searchParams.set('location', location);
+    const params = new URLSearchParams();
+    if (keyword) params.set('keyword', keyword);
+    if (location) params.set('location', location);
     
     console.log('Initiating job search with params:', { keyword, location });
-    navigate(`/jobs?${searchParams.toString()}`);
+    navigate(`/jobs?${params.toString()}`);
   };
 
   return (

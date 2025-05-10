@@ -24,8 +24,8 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
   
   console.log('JobsContainer - Initial search params:', { keyword: initialKeyword, location: initialLocation });
   
-  // Get jobs data
-  const { jobs, loading: jobsLoading } = useJobsData();
+  // Get jobs data with search params
+  const { jobs, loading: jobsLoading } = useJobsData(initialKeyword, initialLocation);
   console.log('JobsContainer - Jobs loaded from useJobsData:', jobs.length);
   
   // Filter jobs
@@ -47,16 +47,16 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
   const currentJobs = filteredJobs.slice(indexOfFirstItem, indexOfLastItem);
   console.log('JobsContainer - Current jobs to display:', currentJobs.length);
   
-  // Parse search filters from URL on component mount or when location.search changes
+  // Apply filters when search params change
   useEffect(() => {
     if (jobs.length > 0) {
-      const initialFilters: SearchFilters = {};
+      const filters: SearchFilters = {};
       
-      if (initialKeyword) initialFilters.keyword = initialKeyword;
-      if (initialLocation) initialFilters.location = initialLocation;
+      if (initialKeyword) filters.keyword = initialKeyword;
+      if (initialLocation) filters.location = initialLocation;
       
-      console.log('JobsContainer - Applying initial filters:', initialFilters);
-      filterJobs(initialFilters);
+      console.log('JobsContainer - Applying initial filters:', filters);
+      filterJobs(filters);
     }
   }, [location.search, filterJobs, initialKeyword, initialLocation, jobs.length]);
   
