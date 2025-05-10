@@ -22,11 +22,11 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
   const initialKeyword = searchParams.get('keyword') || '';
   const initialLocation = searchParams.get('location') || '';
   
-  console.log('Initial search params:', { keyword: initialKeyword, location: initialLocation });
+  console.log('JobsContainer - Initial search params:', { keyword: initialKeyword, location: initialLocation });
   
   // Get jobs data
   const { jobs, loading: jobsLoading } = useJobsData();
-  console.log('Jobs loaded from useJobsData:', jobs.length);
+  console.log('JobsContainer - Jobs loaded from useJobsData:', jobs.length);
   
   // Filter jobs
   const { filteredJobs, filterJobs } = useJobFiltering(jobs);
@@ -45,21 +45,23 @@ const JobsContainer: React.FC<JobsContainerProps> = ({ onOpenAuth }) => {
   
   // Get current jobs to display
   const currentJobs = filteredJobs.slice(indexOfFirstItem, indexOfLastItem);
-  console.log('Current jobs to display:', currentJobs.length);
+  console.log('JobsContainer - Current jobs to display:', currentJobs.length);
   
   // Parse search filters from URL on component mount or when location.search changes
   useEffect(() => {
-    const initialFilters: SearchFilters = {};
-    
-    if (initialKeyword) initialFilters.keyword = initialKeyword;
-    if (initialLocation) initialFilters.location = initialLocation;
-    
-    console.log('Applying initial filters:', initialFilters);
-    filterJobs(initialFilters);
-  }, [location.search, filterJobs, initialKeyword, initialLocation]);
+    if (jobs.length > 0) {
+      const initialFilters: SearchFilters = {};
+      
+      if (initialKeyword) initialFilters.keyword = initialKeyword;
+      if (initialLocation) initialFilters.location = initialLocation;
+      
+      console.log('JobsContainer - Applying initial filters:', initialFilters);
+      filterJobs(initialFilters);
+    }
+  }, [location.search, filterJobs, initialKeyword, initialLocation, jobs.length]);
   
   const handleFilterChange = (filters: SearchFilters) => {
-    console.log('Filter changed:', filters);
+    console.log('JobsContainer - Filter changed:', filters);
     filterJobs(filters);
   };
   

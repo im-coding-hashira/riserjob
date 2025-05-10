@@ -1,14 +1,26 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, MapPin } from 'lucide-react';
 
 const SearchBar: React.FC = () => {
-  const [keyword, setKeyword] = useState('');
-  const [location, setLocation] = useState('');
+  const [searchParams] = useSearchParams();
+  const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
+  const [location, setLocation] = useState(searchParams.get('location') || '');
   const navigate = useNavigate();
+
+  // Update state when URL params change
+  useEffect(() => {
+    const keywordParam = searchParams.get('keyword');
+    const locationParam = searchParams.get('location');
+    
+    if (keywordParam !== null) setKeyword(keywordParam);
+    if (locationParam !== null) setLocation(locationParam);
+    
+    console.log('SearchBar detected URL params:', { keyword: keywordParam, location: locationParam });
+  }, [searchParams]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -17,6 +29,7 @@ const SearchBar: React.FC = () => {
     if (keyword) searchParams.set('keyword', keyword);
     if (location) searchParams.set('location', location);
     
+    console.log('Initiating job search with params:', { keyword, location });
     navigate(`/jobs?${searchParams.toString()}`);
   };
 
